@@ -98,8 +98,8 @@
                                     <ColumnDefinition Width="90"/>
                                     <ColumnDefinition Width="100"/>
                                     <ColumnDefinition Width="40"/>
-                                    <ColumnDefinition Width="50"/>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*" MinWidth="80"/>
                                 </Grid.ColumnDefinitions>
                                 
                                 <!-- Key Icon -->
@@ -147,13 +147,49 @@
                                           FontSize="10" VerticalAlignment="Center" Margin="2,0"
                                           MouseLeftButtonDown="OnNullableClick" Cursor="Hand"/>
                                 
-                                <!-- Default -->
-                                <TextBlock Grid.Column="4" Text="{Binding DefaultValue, TargetNullValue='default'}" Foreground="#6A6A6A" 
-                                          FontSize="10" VerticalAlignment="Center" Margin="2,0"/>
+                                <!-- Default (Editable) -->
+                                <Grid Grid.Column="4" Margin="2,0">
+                                    <TextBlock x:Name="DefaultText" Text="{Binding DefaultValue, TargetNullValue='default'}" Foreground="#6A6A6A" 
+                                              FontSize="10" VerticalAlignment="Center" Cursor="Hand"
+                                              MouseLeftButtonDown="OnDefaultMouseDown">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding DefaultValue}" Value="">
+                                                        <Setter Property="Text" Value="default"/>
+                                                        <Setter Property="Foreground" Value="#4A4A4A"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBox x:Name="DefaultEdit" Text="{Binding DefaultValue, UpdateSourceTrigger=PropertyChanged}" 
+                                            Foreground="#6A6A6A" Background="#3E3E42" BorderBrush="#555"
+                                            FontSize="10" VerticalAlignment="Center" Visibility="Collapsed"
+                                            LostFocus="OnEditLostFocus" KeyDown="OnEditKeyDown"/>
+                                </Grid>
                                 
-                                <!-- Comment -->
-                                <TextBlock Grid.Column="5" Text="{Binding Comment, TargetNullValue='comment'}" Foreground="#6A6A6A" 
-                                          FontSize="10" VerticalAlignment="Center" Margin="2,0"/>
+                                <!-- Comment (Editable) -->
+                                <Grid Grid.Column="5" Margin="2,0">
+                                    <TextBlock x:Name="CommentText" Text="{Binding Comment, TargetNullValue='comment'}" Foreground="#6A6A6A" 
+                                              FontSize="10" VerticalAlignment="Center" Cursor="Hand"
+                                              MouseLeftButtonDown="OnCommentMouseDown">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Comment}" Value="">
+                                                        <Setter Property="Text" Value="comment"/>
+                                                        <Setter Property="Foreground" Value="#4A4A4A"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBox x:Name="CommentEdit" Text="{Binding Comment, UpdateSourceTrigger=PropertyChanged}" 
+                                            Foreground="#6A6A6A" Background="#3E3E42" BorderBrush="#555"
+                                            FontSize="10" VerticalAlignment="Center" Visibility="Collapsed"
+                                            LostFocus="OnEditLostFocus" KeyDown="OnEditKeyDown"/>
+                                </Grid>
                             </Grid>
                         </Border>
                     </DataTemplate>

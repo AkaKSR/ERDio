@@ -14,10 +14,16 @@ namespace ERDio.Controls
         private DateTime _lastClickTime;
         private TextBlock? _lastClickedTextBlock;
         private TextBox? _currentEditBox;
+        private string _originalTableName = string.Empty;
 
         public event EventHandler? TableMoved;
         public event EventHandler? TableDeleted;
         public event EventHandler? TableChanged;
+        
+        /// <summary>
+        /// Func to validate table name. Returns true if the name is valid (not duplicate).
+        /// </summary>
+        public Func<string, string, bool>? ValidateTableName { get; set; }
 
         public Table? TableData => DataContext as Table;
 
@@ -82,6 +88,7 @@ namespace ERDio.Controls
             if (_lastClickedTextBlock == TableNameText && (now - _lastClickTime).TotalMilliseconds < 500)
             {
                 // Double click - edit table name
+                _originalTableName = TableData?.Name ?? string.Empty;
                 TableNameText.Visibility = Visibility.Collapsed;
                 TableNameEdit.Visibility = Visibility.Visible;
                 TableNameEdit.Focus();
@@ -97,20 +104,63 @@ namespace ERDio.Controls
 
         private void OnTableNameEditLostFocus(object sender, RoutedEventArgs e)
         {
-            TableNameEdit.Visibility = Visibility.Collapsed;
-            TableNameText.Visibility = Visibility.Visible;
-            TableChanged?.Invoke(this, EventArgs.Empty);
+            CommitTableNameEdit();
         }
 
         private void OnTableNameEditKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter || e.Key == Key.Escape)
+            if (e.Key == Key.Enter)
+            {
+                CommitTableNameEdit();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                // Cancel edit, restore original name
+                if (TableData != null)
+                {
+                    TableData.Name = _originalTableName;
+                }
+                TableNameEdit.Visibility = Visibility.Collapsed;
+                TableNameText.Visibility = Visibility.Visible;
+                e.Handled = true;
+            }
+        }
+
+        private void CommitTableNameEdit()
+        {
+            if (TableData == null)
             {
                 TableNameEdit.Visibility = Visibility.Collapsed;
                 TableNameText.Visibility = Visibility.Visible;
-                TableChanged?.Invoke(this, EventArgs.Empty);
-                e.Handled = true;
+                return;
             }
+
+            string newName = TableNameEdit.Text.Trim();
+            
+            // Check if name is empty
+            if (string.IsNullOrWhiteSpace(newName))
+            {
+                TableData.Name = _originalTableName;
+                TableNameEdit.Visibility = Visibility.Collapsed;
+                TableNameText.Visibility = Visibility.Visible;
+                MessageBox.Show("Table name cannot be empty.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Check for duplicate name using the validation function
+            if (ValidateTableName != null && !ValidateTableName(newName, TableData.Id))
+            {
+                TableData.Name = _originalTableName;
+                TableNameEdit.Visibility = Visibility.Collapsed;
+                TableNameText.Visibility = Visibility.Visible;
+                MessageBox.Show("A table with this name already exists.", "Duplicate Name", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            TableNameEdit.Visibility = Visibility.Collapsed;
+            TableNameText.Visibility = Visibility.Visible;
+            TableChanged?.Invoke(this, EventArgs.Empty);
         }
 
         private void OnColumnNameMouseDown(object sender, MouseButtonEventArgs e)
@@ -122,6 +172,18 @@ namespace ERDio.Controls
         private void OnDataTypeMouseDown(object sender, MouseButtonEventArgs e)
         {
             HandleDoubleClickEdit(sender as TextBlock, "DataTypeEdit");
+            e.Handled = true;
+        }
+
+        private void OnDefaultMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            HandleDoubleClickEdit(sender as TextBlock, "DefaultEdit");
+            e.Handled = true;
+        }
+
+        private void OnCommentMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            HandleDoubleClickEdit(sender as TextBlock, "CommentEdit");
             e.Handled = true;
         }
 

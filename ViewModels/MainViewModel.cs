@@ -34,90 +34,167 @@ namespace ERDio.ViewModels
 
         private void LoadSampleData()
         {
-            // MEMBER2 테이블
+            // ========================================
+            // 회원(MEMBER) 테이블 - 기준 테이블
+            // ========================================
             var memberTable = new Table
             {
-                Name = "MEMBER2",
-                Comment = "comment",
-                X = 400,
-                Y = 100,
+                Name = "MEMBER",
+                Comment = "회원 정보를 저장하는 테이블",
+                X = 50,
+                Y = 50,
                 HeaderColor = Color.FromRgb(220, 60, 60)
             };
-            memberTable.Columns.Add(new Column { Name = "USERID", DataType = "VARCHAR2(30)", IsPrimaryKey = true, IsNullable = false });
-            memberTable.Columns.Add(new Column { Name = "USERPW", DataType = "VARCHAR2(200)", IsNullable = false });
-            memberTable.Columns.Add(new Column { Name = "USERNAME", DataType = "VARCHAR2(15)", IsNullable = false });
-            memberTable.Columns.Add(new Column { Name = "USERAGE", DataType = "NUMBER(3)", IsNullable = false });
-            memberTable.Columns.Add(new Column { Name = "USERDATE", DataType = "DATE", IsNullable = false });
-            memberTable.Columns.Add(new Column { Name = "ORDNO", DataType = "NUMBER", IsNullable = false });
+            memberTable.Columns.Add(new Column { Name = "MEMBER_ID", DataType = "VARCHAR2(30)", IsPrimaryKey = true, IsNullable = false, Comment = "회원 고유 ID (PK)" });
+            memberTable.Columns.Add(new Column { Name = "PASSWORD", DataType = "VARCHAR2(200)", IsNullable = false, Comment = "비밀번호 (암호화)" });
+            memberTable.Columns.Add(new Column { Name = "NAME", DataType = "VARCHAR2(50)", IsNullable = false, Comment = "회원 이름" });
+            memberTable.Columns.Add(new Column { Name = "EMAIL", DataType = "VARCHAR2(100)", IsNullable = false, Comment = "이메일 주소 (UNIQUE)" });
+            memberTable.Columns.Add(new Column { Name = "PHONE", DataType = "VARCHAR2(20)", IsNullable = true, Comment = "연락처" });
+            memberTable.Columns.Add(new Column { Name = "CREATED_AT", DataType = "DATE", IsNullable = false, Comment = "가입일시" });
+            memberTable.Columns.Add(new Column { Name = "STATUS", DataType = "CHAR(1)", IsNullable = false, Comment = "활성상태 (Y/N)" });
             Tables.Add(memberTable);
 
-            // ITEM2 테이블
-            var itemTable = new Table
+            // ========================================
+            // 카테고리(CATEGORY) 테이블 - 상품 분류
+            // ========================================
+            var categoryTable = new Table
             {
-                Name = "ITEM2",
-                Comment = "comment",
-                X = 50,
-                Y = 350,
+                Name = "CATEGORY",
+                Comment = "상품 카테고리 정보",
+                X = 450,
+                Y = 50,
+                HeaderColor = Color.FromRgb(60, 180, 60)
+            };
+            categoryTable.Columns.Add(new Column { Name = "CATEGORY_ID", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false, Comment = "카테고리 ID (PK)" });
+            categoryTable.Columns.Add(new Column { Name = "CATEGORY_NAME", DataType = "VARCHAR2(100)", IsNullable = false, Comment = "카테고리명" });
+            categoryTable.Columns.Add(new Column { Name = "PARENT_ID", DataType = "NUMBER", IsForeignKey = true, IsNullable = true, Comment = "상위 카테고리 ID (FK, 자기참조)" });
+            categoryTable.Columns.Add(new Column { Name = "DEPTH", DataType = "NUMBER(2)", IsNullable = false, Comment = "카테고리 깊이" });
+            categoryTable.Columns.Add(new Column { Name = "SORT_ORDER", DataType = "NUMBER", IsNullable = false, Comment = "정렬 순서" });
+            Tables.Add(categoryTable);
+
+            // ========================================
+            // 상품(PRODUCT) 테이블
+            // ========================================
+            var productTable = new Table
+            {
+                Name = "PRODUCT",
+                Comment = "상품 정보를 저장하는 테이블",
+                X = 450,
+                Y = 280,
                 HeaderColor = Color.FromRgb(200, 100, 200)
             };
-            itemTable.Columns.Add(new Column { Name = "ITEMNO", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false });
-            itemTable.Columns.Add(new Column { Name = "ITEMNAME", DataType = "VARCHAR2(30)", IsNullable = true });
-            itemTable.Columns.Add(new Column { Name = "ITEMPRICE", DataType = "NUMBER", IsNullable = true });
-            itemTable.Columns.Add(new Column { Name = "ITEMQTY", DataType = "NUMBER", IsNullable = true });
-            itemTable.Columns.Add(new Column { Name = "ITEMDATE", DataType = "DATE", IsNullable = true });
-            itemTable.Columns.Add(new Column { Name = "ORDNO", DataType = "NUMBER", IsForeignKey = true, IsNullable = false });
-            itemTable.Columns.Add(new Column { Name = "ORDNO", DataType = "NUMBER", IsForeignKey = true, IsNullable = false });
-            itemTable.Columns.Add(new Column { Name = "USERID", DataType = "VARCHAR2(30)", IsForeignKey = true, IsNullable = false });
-            Tables.Add(itemTable);
+            productTable.Columns.Add(new Column { Name = "PRODUCT_ID", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false, Comment = "상품 ID (PK)" });
+            productTable.Columns.Add(new Column { Name = "CATEGORY_ID", DataType = "NUMBER", IsForeignKey = true, IsNullable = false, Comment = "카테고리 ID (FK)" });
+            productTable.Columns.Add(new Column { Name = "PRODUCT_NAME", DataType = "VARCHAR2(200)", IsNullable = false, Comment = "상품명" });
+            productTable.Columns.Add(new Column { Name = "PRICE", DataType = "NUMBER(10)", IsNullable = false, Comment = "가격" });
+            productTable.Columns.Add(new Column { Name = "STOCK_QTY", DataType = "NUMBER", IsNullable = false, Comment = "재고 수량" });
+            productTable.Columns.Add(new Column { Name = "DESCRIPTION", DataType = "CLOB", IsNullable = true, Comment = "상품 설명" });
+            productTable.Columns.Add(new Column { Name = "CREATED_AT", DataType = "DATE", IsNullable = false, Comment = "등록일시" });
+            productTable.Columns.Add(new Column { Name = "STATUS", DataType = "CHAR(1)", IsNullable = false, Comment = "판매상태 (Y/N)" });
+            Tables.Add(productTable);
 
-            // ORDER1 테이블
+            // ========================================
+            // 주문(ORDERS) 테이블
+            // ========================================
             var orderTable = new Table
             {
-                Name = "ORDER1",
-                Comment = "comment",
-                X = 650,
-                Y = 380,
+                Name = "ORDERS",
+                Comment = "주문 정보를 저장하는 테이블",
+                X = 50,
+                Y = 320,
                 HeaderColor = Color.FromRgb(80, 80, 180)
             };
-            orderTable.Columns.Add(new Column { Name = "ORDNO", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false });
-            orderTable.Columns.Add(new Column { Name = "ORDCNT", DataType = "NUMBER", IsNullable = true });
-            orderTable.Columns.Add(new Column { Name = "ORDDATE", DataType = "DATE", IsNullable = true });
-            orderTable.Columns.Add(new Column { Name = "ITEMNO", DataType = "NUMBER", IsForeignKey = true, IsNullable = false });
-            orderTable.Columns.Add(new Column { Name = "USERID", DataType = "VARCHAR2(30)", IsForeignKey = true, IsNullable = false });
+            orderTable.Columns.Add(new Column { Name = "ORDER_ID", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false, Comment = "주문 ID (PK)" });
+            orderTable.Columns.Add(new Column { Name = "MEMBER_ID", DataType = "VARCHAR2(30)", IsForeignKey = true, IsNullable = false, Comment = "주문자 ID (FK)" });
+            orderTable.Columns.Add(new Column { Name = "ORDER_DATE", DataType = "DATE", IsNullable = false, Comment = "주문일시" });
+            orderTable.Columns.Add(new Column { Name = "TOTAL_AMOUNT", DataType = "NUMBER(12)", IsNullable = false, Comment = "총 주문금액" });
+            orderTable.Columns.Add(new Column { Name = "STATUS", DataType = "VARCHAR2(20)", IsNullable = false, Comment = "주문상태" });
+            orderTable.Columns.Add(new Column { Name = "SHIPPING_ADDR", DataType = "VARCHAR2(500)", IsNullable = false, Comment = "배송 주소" });
             Tables.Add(orderTable);
 
-            // Relationships
+            // ========================================
+            // 주문상세(ORDER_DETAIL) 테이블 - 다대다 해소
+            // ========================================
+            var orderDetailTable = new Table
+            {
+                Name = "ORDER_DETAIL",
+                Comment = "주문 상세 정보 (주문-상품 다대다 관계 해소)",
+                X = 250,
+                Y = 550,
+                HeaderColor = Color.FromRgb(255, 150, 50)
+            };
+            orderDetailTable.Columns.Add(new Column { Name = "DETAIL_ID", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false, Comment = "주문상세 ID (PK)" });
+            orderDetailTable.Columns.Add(new Column { Name = "ORDER_ID", DataType = "NUMBER", IsForeignKey = true, IsNullable = false, Comment = "주문 ID (FK)" });
+            orderDetailTable.Columns.Add(new Column { Name = "PRODUCT_ID", DataType = "NUMBER", IsForeignKey = true, IsNullable = false, Comment = "상품 ID (FK)" });
+            orderDetailTable.Columns.Add(new Column { Name = "QUANTITY", DataType = "NUMBER", IsNullable = false, Comment = "주문 수량" });
+            orderDetailTable.Columns.Add(new Column { Name = "UNIT_PRICE", DataType = "NUMBER(10)", IsNullable = false, Comment = "주문 당시 단가" });
+            orderDetailTable.Columns.Add(new Column { Name = "SUBTOTAL", DataType = "NUMBER(12)", IsNullable = false, Comment = "소계 (수량 × 단가)" });
+            Tables.Add(orderDetailTable);
+
+            // ========================================
+            // 관계(Relationship) 설정 - DB 기본 규칙 준수
+            // ========================================
+
+            // 1. MEMBER (1) → ORDERS (N) : 한 회원이 여러 주문 가능
             Relationships.Add(new Relationship
             {
                 SourceTableId = memberTable.Id,
                 TargetTableId = orderTable.Id,
-                SourceColumnName = "USERID",
-                TargetColumnName = "USERID",
+                SourceColumnName = "MEMBER_ID",
+                TargetColumnName = "MEMBER_ID",
                 RelationType = RelationType.OneToMany
             });
 
+            // 2. CATEGORY (1) → CATEGORY (N) : 자기참조 (상위-하위 카테고리)
             Relationships.Add(new Relationship
             {
-                SourceTableId = itemTable.Id,
-                TargetTableId = orderTable.Id,
-                SourceColumnName = "ORDNO",
-                TargetColumnName = "ORDNO",
-                RelationType = RelationType.ManyToOne
+                SourceTableId = categoryTable.Id,
+                TargetTableId = categoryTable.Id,
+                SourceColumnName = "CATEGORY_ID",
+                TargetColumnName = "PARENT_ID",
+                RelationType = RelationType.OneToMany
             });
 
+            // 3. CATEGORY (1) → PRODUCT (N) : 한 카테고리에 여러 상품
             Relationships.Add(new Relationship
             {
-                SourceTableId = itemTable.Id,
-                TargetTableId = orderTable.Id,
-                SourceColumnName = "USERID",
-                TargetColumnName = "USERID",
-                RelationType = RelationType.ManyToOne
+                SourceTableId = categoryTable.Id,
+                TargetTableId = productTable.Id,
+                SourceColumnName = "CATEGORY_ID",
+                TargetColumnName = "CATEGORY_ID",
+                RelationType = RelationType.OneToMany
+            });
+
+            // 4. ORDERS (1) → ORDER_DETAIL (N) : 한 주문에 여러 상품
+            Relationships.Add(new Relationship
+            {
+                SourceTableId = orderTable.Id,
+                TargetTableId = orderDetailTable.Id,
+                SourceColumnName = "ORDER_ID",
+                TargetColumnName = "ORDER_ID",
+                RelationType = RelationType.OneToMany
+            });
+
+            // 5. PRODUCT (1) → ORDER_DETAIL (N) : 한 상품이 여러 주문에 포함
+            Relationships.Add(new Relationship
+            {
+                SourceTableId = productTable.Id,
+                TargetTableId = orderDetailTable.Id,
+                SourceColumnName = "PRODUCT_ID",
+                TargetColumnName = "PRODUCT_ID",
+                RelationType = RelationType.OneToMany
             });
         }
 
-        public void AddTable(Table table)
+        public bool AddTable(Table table)
         {
+            // Check for duplicate table name
+            if (Tables.Any(t => t.Name.Equals(table.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
             Tables.Add(table);
+            return true;
         }
 
         public void RemoveTable(Table table)
@@ -125,9 +202,26 @@ namespace ERDio.ViewModels
             Tables.Remove(table);
         }
 
-        public void AddRelationship(Relationship relationship)
+        public bool AddRelationship(Relationship relationship)
         {
+            // Check for duplicate relationship (same source table, target table, source column, target column)
+            if (Relationships.Any(r => 
+                r.SourceTableId == relationship.SourceTableId &&
+                r.TargetTableId == relationship.TargetTableId &&
+                r.SourceColumnName.Equals(relationship.SourceColumnName, StringComparison.OrdinalIgnoreCase) &&
+                r.TargetColumnName.Equals(relationship.TargetColumnName, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
             Relationships.Add(relationship);
+            return true;
+        }
+
+        public bool IsTableNameDuplicate(string name, string? excludeId = null)
+        {
+            return Tables.Any(t => 
+                t.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && 
+                (excludeId == null || t.Id != excludeId));
         }
 
         public Table? GetTableById(string id)

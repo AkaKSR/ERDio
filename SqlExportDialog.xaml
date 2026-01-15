@@ -1,0 +1,66 @@
+<Window x:Class="ERDio.SqlExportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Export SQL" 
+        Height="500" Width="600"
+        Background="#2D2D30"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip">
+    
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="MinWidth" Value="150"/>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="Black"/>
+        </Style>
+    </Window.Resources>
+    
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Database Type Selection -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Database Type:" Margin="0,0,10,0"/>
+            <ComboBox x:Name="DatabaseTypeCombo" SelectionChanged="OnDatabaseTypeChanged">
+                <ComboBoxItem Content="MySQL" Tag="MySQL" IsSelected="True"/>
+                <ComboBoxItem Content="PostgreSQL" Tag="PostgreSQL"/>
+                <ComboBoxItem Content="Oracle" Tag="Oracle"/>
+                <ComboBoxItem Content="Tibero" Tag="Tibero"/>
+            </ComboBox>
+        </StackPanel>
+        
+        <!-- SQL TextArea -->
+        <Border Grid.Row="1" BorderBrush="#555" BorderThickness="1" CornerRadius="3">
+            <TextBox x:Name="SqlTextBox"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     HorizontalScrollBarVisibility="Auto"
+                     VerticalScrollBarVisibility="Auto"
+                     Background="#1E1E1E"
+                     Foreground="#D4D4D4"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     Padding="10"/>
+        </Border>
+        
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="📋 Copy" Width="100" Margin="0,0,10,0" Click="OnCopy"
+                    Background="#007ACC" Foreground="White" BorderBrush="#005A9E" Padding="10,8"/>
+            <Button Content="Close" Width="100" Click="OnClose"
+                    Background="#3E3E42" Foreground="#E0E0E0" BorderBrush="#555" Padding="10,8"/>
+        </StackPanel>
+    </Grid>
+</Window>

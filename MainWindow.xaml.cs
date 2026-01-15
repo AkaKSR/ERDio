@@ -84,7 +84,8 @@ public partial class MainWindow : Window
     {
         var tableControl = new TableControl
         {
-            DataContext = table
+            DataContext = table,
+            ValidateTableName = (name, excludeId) => !ViewModel.IsTableNameDuplicate(name, excludeId)
         };
         
         tableControl.TableMoved += OnTableMoved;
@@ -267,9 +268,19 @@ public partial class MainWindow : Window
 
     private void OnAddTable(object sender, RoutedEventArgs e)
     {
+        // Generate unique table name
+        string baseName = "NEW_TABLE";
+        string tableName = baseName;
+        int counter = 1;
+        while (ViewModel.IsTableNameDuplicate(tableName))
+        {
+            tableName = $"{baseName}_{counter}";
+            counter++;
+        }
+
         var newTable = new Table
         {
-            Name = "NEW_TABLE",
+            Name = tableName,
             Comment = "comment",
             X = 100,
             Y = 100,
@@ -571,9 +582,31 @@ public partial class MainWindow : Window
         
         if (dialog.ShowDialog() == true && dialog.Result != null)
         {
-            ViewModel.Relationships.Add(dialog.Result);
-            AddRelationshipLine(dialog.Result);
+            if (ViewModel.AddRelationship(dialog.Result))
+            {
+                AddRelationshipLine(dialog.Result);
+            }
+            else
+            {
+                MessageBox.Show("This relationship already exists.", "Duplicate Relationship", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
+    }
+
+    private void OnExportSql(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.Tables.Count == 0)
+        {
+            MessageBox.Show("No tables to export.", "Export SQL", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var dialog = new SqlExportDialog(
+            ViewModel.Tables.ToList(),
+            ViewModel.Relationships.ToList(),
+            ViewModel.DatabaseName);
+        dialog.Owner = this;
+        dialog.ShowDialog();
     }
 }
 

@@ -68,9 +68,10 @@
                 <Separator Width="20" Visibility="Hidden"/>
                 
                 <!-- Toolbar Buttons -->
-                <Button Content="�" ToolTip="New Table" Style="{StaticResource ToolbarButtonStyle}" Margin="2" Click="OnAddTable"/>
+                <Button Content="➕" ToolTip="New Table" Style="{StaticResource ToolbarButtonStyle}" Margin="2" Click="OnAddTable"/>
                 <Button Content="🔗" ToolTip="Add Relationship" Style="{StaticResource ToolbarButtonStyle}" Margin="2" Click="OnAddRelationship"/>
                 <Button Content="📷" ToolTip="Export Image" Style="{StaticResource ToolbarButtonStyle}" Margin="2" Click="OnExportImage"/>
+                <Button Content="📜" ToolTip="Export SQL" Style="{StaticResource ToolbarButtonStyle}" Margin="2" Click="OnExportSql"/>
                 <Button Content="💾" ToolTip="Save" Style="{StaticResource ToolbarButtonStyle}" Margin="2" Click="OnSave"/>
                 <Button Content="📂" ToolTip="Load" Style="{StaticResource ToolbarButtonStyle}" Margin="2" Click="OnLoad"/>
             </StackPanel>
@@ -105,7 +106,7 @@
                         Background="#2D2D30" 
                         BorderBrush="#555" BorderThickness="1"
                         HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Margin="10" CornerRadius="3">
+                        Margin="0,10,25,0" CornerRadius="3">
                     <Canvas x:Name="MinimapCanvas" ClipToBounds="True"/>
                 </Border>
             </Grid>
