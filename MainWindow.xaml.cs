@@ -27,6 +27,14 @@ public partial class MainWindow : Window
     private Point _panStartPoint;
     private double _panStartOffsetX;
     private double _panStartOffsetY;
+    
+    // Minimap drag state
+    private bool _isMinimapDragging;
+    private double _minimapScale;
+    private double _minimapOffsetX;
+    private double _minimapOffsetY;
+    private double _minimapMinX;
+    private double _minimapMinY;
 
     public MainWindow()
     {
@@ -36,39 +44,179 @@ public partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        // Set initial canvas size
+        ErdCanvas.Width = 2000;
+        ErdCanvas.Height = 2000;
+        
         DrawGridPattern();
         LoadTables();
         DrawRelationships();
-        UpdateMinimap();
+        ExpandCanvasIfNeeded();
+        // Defer overlap resolution until after initial layout so ActualWidth/ActualHeight are available
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            ResolveOverlapsUsingActualSizes();
+            UpdateMinimap();
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// After initial controls are measured, resolve any overlaps by nudging colliding tables downward/rightward.
+    /// This iteratively moves tables until no collisions remain or a max iteration count is reached.
+    /// </summary>
+    private void ResolveOverlapsUsingActualSizes()
+    {
+        const double margin = 12;
+        var controls = _tableControls.Values.ToList();
+
+        bool changed;
+        int iter = 0;
+        const int maxIter = 1000;
+
+        do
+        {
+            changed = false;
+
+            for (int i = 0; i < controls.Count; i++)
+            {
+                var a = controls[i];
+                if (a.TableData == null) continue;
+
+                double ax = a.TableData.X;
+                double ay = a.TableData.Y;
+                double aw = a.ActualWidth > 0 ? a.ActualWidth : 320;
+                double ah = a.ActualHeight > 0 ? a.ActualHeight : 100;
+
+                for (int j = 0; j < controls.Count; j++)
+                {
+                    if (i == j) continue;
+                    var b = controls[j];
+                    if (b.TableData == null) continue;
+
+                    double bx = b.TableData.X;
+                    double by = b.TableData.Y;
+                    double bw = b.ActualWidth > 0 ? b.ActualWidth : 320;
+                    double bh = b.ActualHeight > 0 ? b.ActualHeight : 100;
+
+                    bool overlapsX = ax < bx + bw + margin && ax + aw + margin > bx;
+                    bool overlapsY = ay < by + bh + margin && ay + ah + margin > by;
+
+                    if (overlapsX && overlapsY)
+                    {
+                        // Move the lower-indexed (earlier) control upward and the later one downward to resolve
+                        // Prefer nudging the one further down already, otherwise push 'b' down
+                        double newBy = ay + ah + margin;
+                        if (newBy <= by)
+                        {
+                            // push b down
+                            b.TableData.Y = newBy;
+                            Canvas.SetTop(b, b.TableData.Y);
+                            changed = true;
+                        }
+                        else
+                        {
+                            // fallback: push b further down
+                            b.TableData.Y = newBy;
+                            Canvas.SetTop(b, b.TableData.Y);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+            iter++;
+        } while (changed && iter < maxIter);
+
+        if (iter >= maxIter)
+        {
+            // safety: expand canvas to reduce further crowding if stuck
+            ExpandCanvasIfNeeded();
+        }
+
+        // Refresh derived visuals
+        UpdateRelationshipLines();
+        ExpandCanvasIfNeeded();
     }
 
     private void DrawGridPattern()
     {
+        double width = ErdCanvas.Width > 0 ? ErdCanvas.Width : 2000;
+        double height = ErdCanvas.Height > 0 ? ErdCanvas.Height : 2000;
+        DrawGridPattern((int)width, (int)height);
+    }
+
+    private void DrawGridPattern(int width, int height)
+    {
+        GridCanvas.Children.Clear();
+        
         int gridSize = 20;
         var brush = new SolidColorBrush(Color.FromRgb(50, 50, 50));
         
-        for (int x = 0; x < 2000; x += gridSize)
+        for (int x = 0; x < width; x += gridSize)
         {
             var line = new Line
             {
                 X1 = x, Y1 = 0,
-                X2 = x, Y2 = 2000,
+                X2 = x, Y2 = height,
                 Stroke = brush,
                 StrokeThickness = 0.5
             };
             GridCanvas.Children.Add(line);
         }
 
-        for (int y = 0; y < 2000; y += gridSize)
+        for (int y = 0; y < height; y += gridSize)
         {
             var line = new Line
             {
                 X1 = 0, Y1 = y,
-                X2 = 2000, Y2 = y,
+                X2 = width, Y2 = y,
                 Stroke = brush,
                 StrokeThickness = 0.5
             };
             GridCanvas.Children.Add(line);
+        }
+    }
+
+    private void ExpandCanvasIfNeeded()
+    {
+        const double padding = 200;
+        const double expandStep = 500;
+        
+        double maxX = 0, maxY = 0;
+        
+        foreach (var table in ViewModel.Tables)
+        {
+            if (_tableControls.TryGetValue(table.Id, out var control))
+            {
+                double tableRight = table.X + (control.ActualWidth > 0 ? control.ActualWidth : 320);
+                double tableBottom = table.Y + (control.ActualHeight > 0 ? control.ActualHeight : 100);
+                
+                maxX = Math.Max(maxX, tableRight);
+                maxY = Math.Max(maxY, tableBottom);
+            }
+        }
+        
+        bool needsExpand = false;
+        double newWidth = ErdCanvas.Width;
+        double newHeight = ErdCanvas.Height;
+        
+        if (maxX + padding > ErdCanvas.Width)
+        {
+            newWidth = Math.Ceiling((maxX + padding) / expandStep) * expandStep;
+            needsExpand = true;
+        }
+        
+        if (maxY + padding > ErdCanvas.Height)
+        {
+            newHeight = Math.Ceiling((maxY + padding) / expandStep) * expandStep;
+            needsExpand = true;
+        }
+        
+        if (needsExpand)
+        {
+            ErdCanvas.Width = newWidth;
+            ErdCanvas.Height = newHeight;
+            DrawGridPattern((int)newWidth, (int)newHeight);
         }
     }
 
@@ -85,7 +233,8 @@ public partial class MainWindow : Window
         var tableControl = new TableControl
         {
             DataContext = table,
-            ValidateTableName = (name, excludeId) => !ViewModel.IsTableNameDuplicate(name, excludeId)
+            ValidateTableName = (name, excludeId) => !ViewModel.IsTableNameDuplicate(name, excludeId),
+            CheckCollision = CheckTableCollision
         };
         
         tableControl.TableMoved += OnTableMoved;
@@ -99,10 +248,38 @@ public partial class MainWindow : Window
         _tableControls[table.Id] = tableControl;
     }
 
+    private bool CheckTableCollision(string tableId, double x, double y, double width, double height)
+    {
+        const double margin = 10; // Minimum gap between tables
+        
+        foreach (var kvp in _tableControls)
+        {
+            if (kvp.Key == tableId) continue; // Skip self
+            
+            var otherTable = kvp.Value.TableData;
+            if (otherTable == null) continue;
+            
+            double otherWidth = kvp.Value.ActualWidth > 0 ? kvp.Value.ActualWidth : 320;
+            double otherHeight = kvp.Value.ActualHeight > 0 ? kvp.Value.ActualHeight : 100;
+            
+            // Check if rectangles overlap (with margin)
+            bool overlapsX = x < otherTable.X + otherWidth + margin && x + width + margin > otherTable.X;
+            bool overlapsY = y < otherTable.Y + otherHeight + margin && y + height + margin > otherTable.Y;
+            
+            if (overlapsX && overlapsY)
+            {
+                return true; // Collision detected
+            }
+        }
+        
+        return false; // No collision
+    }
+
     private void OnTableMoved(object? sender, EventArgs e)
     {
         UpdateRelationshipLines();
         UpdateMinimap();
+        ExpandCanvasIfNeeded();
     }
 
     private void OnTableDeleted(object? sender, EventArgs e)
@@ -231,33 +408,181 @@ public partial class MainWindow : Window
     {
         MinimapCanvas.Children.Clear();
         
-        double scale = 0.05;
-        
         // Default table size for minimap when ActualWidth/Height not yet available
         const double defaultWidth = 320;
         const double defaultHeight = 100;
+        const double minimapWidth = 100;
+        const double minimapHeight = 70;
         
+        // Calculate the bounding box of all tables (or use canvas size if no tables)
+        double minX = 0, minY = 0;
+        double maxX = ErdCanvas.ActualWidth > 0 ? ErdCanvas.ActualWidth : 2000;
+        double maxY = ErdCanvas.ActualHeight > 0 ? ErdCanvas.ActualHeight : 2000;
+        
+        if (ViewModel.Tables.Count > 0)
+        {
+            minX = double.MaxValue;
+            minY = double.MaxValue;
+            maxX = double.MinValue;
+            maxY = double.MinValue;
+            
+            foreach (var table in ViewModel.Tables)
+            {
+                double width = defaultWidth;
+                double height = defaultHeight;
+                
+                if (_tableControls.TryGetValue(table.Id, out var control))
+                {
+                    width = control.ActualWidth > 0 ? control.ActualWidth : defaultWidth;
+                    height = control.ActualHeight > 0 ? control.ActualHeight : defaultHeight;
+                }
+                
+                minX = Math.Min(minX, table.X);
+                minY = Math.Min(minY, table.Y);
+                maxX = Math.Max(maxX, table.X + width);
+                maxY = Math.Max(maxY, table.Y + height);
+            }
+            
+            // Add padding
+            const double padding = 50;
+            minX = Math.Max(0, minX - padding);
+            minY = Math.Max(0, minY - padding);
+            maxX += padding;
+            maxY += padding;
+        }
+        
+        double contentWidth = Math.Max(1, maxX - minX);
+        double contentHeight = Math.Max(1, maxY - minY);
+        
+        // Calculate scale to fit content in minimap
+        double scaleX = minimapWidth / contentWidth;
+        double scaleY = minimapHeight / contentHeight;
+        double scale = Math.Min(scaleX, scaleY);
+        
+        // Center offset
+        double offsetX = (minimapWidth - contentWidth * scale) / 2;
+        double offsetY = (minimapHeight - contentHeight * scale) / 2;
+        
+        // Store minimap transform info for drag navigation
+        _minimapScale = scale;
+        _minimapOffsetX = offsetX;
+        _minimapOffsetY = offsetY;
+        _minimapMinX = minX;
+        _minimapMinY = minY;
+        
+        // Draw tables
         foreach (var table in ViewModel.Tables)
         {
-            if (!_tableControls.TryGetValue(table.Id, out var control)) continue;
+            double width = defaultWidth;
+            double height = defaultHeight;
             
-            // Use ActualWidth/Height if available, otherwise use default size
-            double width = control.ActualWidth > 0 ? control.ActualWidth : defaultWidth;
-            double height = control.ActualHeight > 0 ? control.ActualHeight : defaultHeight;
+            if (_tableControls.TryGetValue(table.Id, out var control))
+            {
+                width = control.ActualWidth > 0 ? control.ActualWidth : defaultWidth;
+                height = control.ActualHeight > 0 ? control.ActualHeight : defaultHeight;
+            }
             
             var rect = new Rectangle
             {
-                Width = Math.Max(5, width * scale),
-                Height = Math.Max(3, height * scale),
+                Width = Math.Max(2, width * scale),
+                Height = Math.Max(2, height * scale),
                 Fill = table.HeaderBrush,
-                Opacity = 0.7
+                Opacity = 0.8
             };
             
-            Canvas.SetLeft(rect, table.X * scale);
-            Canvas.SetTop(rect, table.Y * scale);
+            Canvas.SetLeft(rect, offsetX + (table.X - minX) * scale);
+            Canvas.SetTop(rect, offsetY + (table.Y - minY) * scale);
             
             MinimapCanvas.Children.Add(rect);
         }
+        
+        // Draw viewport rectangle (current visible area)
+        double zoomScale = ViewModel.ZoomScale;
+        double viewportX = CanvasScrollViewer.HorizontalOffset / zoomScale;
+        double viewportY = CanvasScrollViewer.VerticalOffset / zoomScale;
+        double viewportWidth = CanvasScrollViewer.ViewportWidth / zoomScale;
+        double viewportHeight = CanvasScrollViewer.ViewportHeight / zoomScale;
+        
+        var viewportRect = new Rectangle
+        {
+            Width = Math.Max(2, viewportWidth * scale),
+            Height = Math.Max(2, viewportHeight * scale),
+            Fill = Brushes.Transparent,
+            Stroke = Brushes.White,
+            StrokeThickness = 1.5,
+            Opacity = 0.9
+        };
+        
+        Canvas.SetLeft(viewportRect, offsetX + (viewportX - minX) * scale);
+        Canvas.SetTop(viewportRect, offsetY + (viewportY - minY) * scale);
+        
+        MinimapCanvas.Children.Add(viewportRect);
+    }
+    
+    private void OnCanvasScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        UpdateMinimap();
+    }
+    
+    private void OnMinimapMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _isMinimapDragging = true;
+        MinimapCanvas.CaptureMouse();
+        NavigateFromMinimap(e.GetPosition(MinimapCanvas));
+        e.Handled = true;
+    }
+    
+    private void OnMinimapMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_isMinimapDragging && e.LeftButton == MouseButtonState.Pressed)
+        {
+            NavigateFromMinimap(e.GetPosition(MinimapCanvas));
+        }
+    }
+    
+    private void OnMinimapMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isMinimapDragging)
+        {
+            _isMinimapDragging = false;
+            MinimapCanvas.ReleaseMouseCapture();
+        }
+    }
+    
+    private void NavigateFromMinimap(Point minimapPoint)
+    {
+        if (_minimapScale <= 0) return;
+        
+        const double minimapWidth = 100;
+        const double minimapHeight = 70;
+        
+        // Calculate viewport size in minimap coordinates
+        double zoomScale = ViewModel.ZoomScale;
+        double viewportWidth = CanvasScrollViewer.ViewportWidth / zoomScale;
+        double viewportHeight = CanvasScrollViewer.ViewportHeight / zoomScale;
+        double viewportMinimapWidth = viewportWidth * _minimapScale;
+        double viewportMinimapHeight = viewportHeight * _minimapScale;
+        
+        // Clamp the minimap point so viewport stays within minimap bounds
+        double clampedX = Math.Max(_minimapOffsetX + viewportMinimapWidth / 2, 
+                                   Math.Min(minimapPoint.X, minimapWidth - _minimapOffsetX - viewportMinimapWidth / 2));
+        double clampedY = Math.Max(_minimapOffsetY + viewportMinimapHeight / 2, 
+                                   Math.Min(minimapPoint.Y, minimapHeight - _minimapOffsetY - viewportMinimapHeight / 2));
+        
+        // Convert minimap coordinates to canvas coordinates
+        double canvasX = (clampedX - _minimapOffsetX) / _minimapScale + _minimapMinX;
+        double canvasY = (clampedY - _minimapOffsetY) / _minimapScale + _minimapMinY;
+        
+        // Center the viewport on the clicked point
+        double scrollX = (canvasX - viewportWidth / 2) * zoomScale;
+        double scrollY = (canvasY - viewportHeight / 2) * zoomScale;
+        
+        // Clamp to valid scroll range
+        scrollX = Math.Max(0, Math.Min(scrollX, CanvasScrollViewer.ScrollableWidth));
+        scrollY = Math.Max(0, Math.Min(scrollY, CanvasScrollViewer.ScrollableHeight));
+        
+        CanvasScrollViewer.ScrollToHorizontalOffset(scrollX);
+        CanvasScrollViewer.ScrollToVerticalOffset(scrollY);
     }
 
     private void OnCanvasMouseWheel(object sender, MouseWheelEventArgs e)
@@ -278,12 +603,19 @@ public partial class MainWindow : Window
             counter++;
         }
 
+        // Calculate table height (base + 2 default columns)
+        double tableWidth = 470;
+        double tableHeight = 45 + 2 * 22;  // baseHeight + 2 rows
+
+        // Find non-overlapping position
+        var (posX, posY) = ViewModel.FindNonOverlappingPosition(tableWidth, tableHeight);
+
         var newTable = new Table
         {
             Name = tableName,
             Comment = "comment",
-            X = 100,
-            Y = 100,
+            X = posX,
+            Y = posY,
             HeaderColor = Color.FromRgb(100, 149, 237)
         };
         
@@ -484,6 +816,7 @@ public partial class MainWindow : Window
                 }
 
                 DrawRelationships();
+                ExpandCanvasIfNeeded();
                 UpdateMinimap();
                 
                 MessageBox.Show("Loaded successfully!", "Load", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -607,6 +940,79 @@ public partial class MainWindow : Window
             ViewModel.DatabaseName);
         dialog.Owner = this;
         dialog.ShowDialog();
+    }
+
+    private void OnDbToErd(object sender, RoutedEventArgs e)
+    {
+        var dialog = new DbConnectionDialog();
+        dialog.Owner = this;
+
+        if (dialog.ShowDialog() == true && dialog.IsSuccess)
+        {
+            // Clear existing data
+            foreach (var control in _tableControls.Values)
+            {
+                ErdCanvas.Children.Remove(control);
+            }
+            _tableControls.Clear();
+
+            foreach (var line in _relationshipLines)
+            {
+                ErdCanvas.Children.Remove(line);
+            }
+            _relationshipLines.Clear();
+
+            ViewModel.Tables.Clear();
+            ViewModel.Relationships.Clear();
+
+            // Load generated tables
+            if (dialog.GeneratedTables != null)
+            {
+                foreach (var table in dialog.GeneratedTables)
+                {
+                    // Estimate table size
+                    double tableWidth = 470;
+                    double tableHeight = 45 + table.Columns.Count * 22;
+
+                    // Start from a non-overlapping candidate position
+                    var (posX, posY) = ViewModel.FindNonOverlappingPosition(tableWidth, tableHeight);
+
+                    // If a collision still exists (due to size/measurement differences),
+                    // iteratively increase spacing by 15px until no collision or max iterations.
+                    const double increment = 15; // widen gap by 15px per iteration
+                    int iter = 0;
+                    const int maxIter = 200;
+
+                    while (CheckTableCollision(table.Id, posX, posY, tableWidth, tableHeight) && iter < maxIter)
+                    {
+                        posX += increment;
+                        posY += increment;
+                        iter++;
+                    }
+
+                    table.X = posX;
+                    table.Y = posY;
+
+                    ViewModel.Tables.Add(table);
+                    AddTableControl(table);
+                }
+            }
+
+            // Load generated relationships
+            if (dialog.GeneratedRelationships != null)
+            {
+                foreach (var relationship in dialog.GeneratedRelationships)
+                {
+                    ViewModel.Relationships.Add(relationship);
+                }
+                DrawRelationships();
+            }
+
+            ExpandCanvasIfNeeded();
+            UpdateMinimap();
+            MessageBox.Show($"Successfully generated ERD with {dialog.GeneratedTables?.Count ?? 0} tables and {dialog.GeneratedRelationships?.Count ?? 0} relationships.", 
+                "DB to ERD", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 }
 

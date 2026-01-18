@@ -34,8 +34,17 @@ namespace ERDio.ViewModels
 
         private void LoadSampleData()
         {
+            // Table layout constants (based on actual TableControl dimensions)
+            // Grid columns: 20+90+100+40+70+80 = 400px minimum + border/padding
+            const double tableWidth = 470;
+            const double baseHeight = 45;   // Header + outer borders
+            const double rowHeight = 22;    // Row height with padding/border
+            const double marginX = 50;      // Horizontal gap between tables
+            const double marginY = 50;      // Vertical gap between tables
+
             // ========================================
-            // 회원(MEMBER) 테이블 - 기준 테이블
+            // 회원(MEMBER) 테이블 - 기준 테이블 (7 columns)
+            // Height: 80 + 7*22 = 234
             // ========================================
             var memberTable = new Table
             {
@@ -53,15 +62,17 @@ namespace ERDio.ViewModels
             memberTable.Columns.Add(new Column { Name = "CREATED_AT", DataType = "DATE", IsNullable = false, Comment = "가입일시" });
             memberTable.Columns.Add(new Column { Name = "STATUS", DataType = "CHAR(1)", IsNullable = false, Comment = "활성상태 (Y/N)" });
             Tables.Add(memberTable);
+            double memberHeight = baseHeight + memberTable.Columns.Count * rowHeight;
 
             // ========================================
-            // 카테고리(CATEGORY) 테이블 - 상품 분류
+            // 카테고리(CATEGORY) 테이블 - 상품 분류 (5 columns)
+            // Height: 80 + 5*22 = 190
             // ========================================
             var categoryTable = new Table
             {
                 Name = "CATEGORY",
                 Comment = "상품 카테고리 정보",
-                X = 450,
+                X = 50 + tableWidth + marginX,  // 430
                 Y = 50,
                 HeaderColor = Color.FromRgb(60, 180, 60)
             };
@@ -71,16 +82,39 @@ namespace ERDio.ViewModels
             categoryTable.Columns.Add(new Column { Name = "DEPTH", DataType = "NUMBER(2)", IsNullable = false, Comment = "카테고리 깊이" });
             categoryTable.Columns.Add(new Column { Name = "SORT_ORDER", DataType = "NUMBER", IsNullable = false, Comment = "정렬 순서" });
             Tables.Add(categoryTable);
+            double categoryHeight = baseHeight + categoryTable.Columns.Count * rowHeight;
 
             // ========================================
-            // 상품(PRODUCT) 테이블
+            // 주문(ORDERS) 테이블 (6 columns)
+            // Position: Below MEMBER
+            // ========================================
+            var orderTable = new Table
+            {
+                Name = "ORDERS",
+                Comment = "주문 정보를 저장하는 테이블",
+                X = 50,
+                Y = 50 + memberHeight + marginY,  // Below MEMBER
+                HeaderColor = Color.FromRgb(80, 80, 180)
+            };
+            orderTable.Columns.Add(new Column { Name = "ORDER_ID", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false, Comment = "주문 ID (PK)" });
+            orderTable.Columns.Add(new Column { Name = "MEMBER_ID", DataType = "VARCHAR2(30)", IsForeignKey = true, IsNullable = false, Comment = "주문자 ID (FK)" });
+            orderTable.Columns.Add(new Column { Name = "ORDER_DATE", DataType = "DATE", IsNullable = false, Comment = "주문일시" });
+            orderTable.Columns.Add(new Column { Name = "TOTAL_AMOUNT", DataType = "NUMBER(12)", IsNullable = false, Comment = "총 주문금액" });
+            orderTable.Columns.Add(new Column { Name = "STATUS", DataType = "VARCHAR2(20)", IsNullable = false, Comment = "주문상태" });
+            orderTable.Columns.Add(new Column { Name = "SHIPPING_ADDR", DataType = "VARCHAR2(500)", IsNullable = false, Comment = "배송 주소" });
+            Tables.Add(orderTable);
+            double orderHeight = baseHeight + orderTable.Columns.Count * rowHeight;
+
+            // ========================================
+            // 상품(PRODUCT) 테이블 (8 columns)
+            // Position: Below CATEGORY
             // ========================================
             var productTable = new Table
             {
                 Name = "PRODUCT",
                 Comment = "상품 정보를 저장하는 테이블",
-                X = 450,
-                Y = 280,
+                X = 50 + tableWidth + marginX,  // 430
+                Y = 50 + categoryHeight + marginY,  // Below CATEGORY
                 HeaderColor = Color.FromRgb(200, 100, 200)
             };
             productTable.Columns.Add(new Column { Name = "PRODUCT_ID", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false, Comment = "상품 ID (PK)" });
@@ -92,35 +126,18 @@ namespace ERDio.ViewModels
             productTable.Columns.Add(new Column { Name = "CREATED_AT", DataType = "DATE", IsNullable = false, Comment = "등록일시" });
             productTable.Columns.Add(new Column { Name = "STATUS", DataType = "CHAR(1)", IsNullable = false, Comment = "판매상태 (Y/N)" });
             Tables.Add(productTable);
+            double productHeight = baseHeight + productTable.Columns.Count * rowHeight;
 
             // ========================================
-            // 주문(ORDERS) 테이블
-            // ========================================
-            var orderTable = new Table
-            {
-                Name = "ORDERS",
-                Comment = "주문 정보를 저장하는 테이블",
-                X = 50,
-                Y = 320,
-                HeaderColor = Color.FromRgb(80, 80, 180)
-            };
-            orderTable.Columns.Add(new Column { Name = "ORDER_ID", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false, Comment = "주문 ID (PK)" });
-            orderTable.Columns.Add(new Column { Name = "MEMBER_ID", DataType = "VARCHAR2(30)", IsForeignKey = true, IsNullable = false, Comment = "주문자 ID (FK)" });
-            orderTable.Columns.Add(new Column { Name = "ORDER_DATE", DataType = "DATE", IsNullable = false, Comment = "주문일시" });
-            orderTable.Columns.Add(new Column { Name = "TOTAL_AMOUNT", DataType = "NUMBER(12)", IsNullable = false, Comment = "총 주문금액" });
-            orderTable.Columns.Add(new Column { Name = "STATUS", DataType = "VARCHAR2(20)", IsNullable = false, Comment = "주문상태" });
-            orderTable.Columns.Add(new Column { Name = "SHIPPING_ADDR", DataType = "VARCHAR2(500)", IsNullable = false, Comment = "배송 주소" });
-            Tables.Add(orderTable);
-
-            // ========================================
-            // 주문상세(ORDER_DETAIL) 테이블 - 다대다 해소
+            // 주문상세(ORDER_DETAIL) 테이블 - 다대다 해소 (6 columns)
+            // Position: Below ORDERS
             // ========================================
             var orderDetailTable = new Table
             {
                 Name = "ORDER_DETAIL",
                 Comment = "주문 상세 정보 (주문-상품 다대다 관계 해소)",
-                X = 250,
-                Y = 550,
+                X = 50,
+                Y = 50 + memberHeight + marginY + orderHeight + marginY,  // Below ORDERS
                 HeaderColor = Color.FromRgb(255, 150, 50)
             };
             orderDetailTable.Columns.Add(new Column { Name = "DETAIL_ID", DataType = "NUMBER", IsPrimaryKey = true, IsNullable = false, Comment = "주문상세 ID (PK)" });
@@ -227,6 +244,56 @@ namespace ERDio.ViewModels
         public Table? GetTableById(string id)
         {
             return Tables.FirstOrDefault(t => t.Id == id);
+        }
+
+        /// <summary>
+        /// Find a non-overlapping position for a new table
+        /// </summary>
+        public (double X, double Y) FindNonOverlappingPosition(double tableWidth, double tableHeight, double startX = 100, double startY = 100)
+        {
+            const double margin = 20;
+            const double stepX = 50;
+            const double stepY = 50;
+            const double maxX = 3000;
+            const double maxY = 5000;
+
+            double x = startX;
+            double y = startY;
+
+            while (y < maxY)
+            {
+                x = startX;
+                while (x < maxX)
+                {
+                    bool hasCollision = false;
+                    foreach (var table in Tables)
+                    {
+                        double existingWidth = 470;  // Approximate table width
+                        double existingHeight = 45 + table.Columns.Count * 22;  // baseHeight + rows
+
+                        // Check if rectangles overlap
+                        bool overlapsX = x < table.X + existingWidth + margin && x + tableWidth + margin > table.X;
+                        bool overlapsY = y < table.Y + existingHeight + margin && y + tableHeight + margin > table.Y;
+
+                        if (overlapsX && overlapsY)
+                        {
+                            hasCollision = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasCollision)
+                    {
+                        return (x, y);
+                    }
+
+                    x += stepX;
+                }
+                y += stepY;
+            }
+
+            // Fallback: return original position if no space found
+            return (startX, startY);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

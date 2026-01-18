@@ -24,6 +24,12 @@ namespace ERDio.Controls
         /// Func to validate table name. Returns true if the name is valid (not duplicate).
         /// </summary>
         public Func<string, string, bool>? ValidateTableName { get; set; }
+        
+        /// <summary>
+        /// Func to check if position collides with other tables. Returns true if collision detected.
+        /// Parameters: tableId, x, y, width, height
+        /// </summary>
+        public Func<string, double, double, double, double, bool>? CheckCollision { get; set; }
 
         public Table? TableData => DataContext as Table;
 
@@ -53,13 +59,51 @@ namespace ERDio.Controls
             var currentPoint = e.GetPosition(Parent as IInputElement);
             var offset = currentPoint - _dragStartPoint;
             
-            TableData.X = _tableStartPosition.X + offset.X;
-            TableData.Y = _tableStartPosition.Y + offset.Y;
+            double newX = _tableStartPosition.X + offset.X;
+            double newY = _tableStartPosition.Y + offset.Y;
             
-            Canvas.SetLeft(this, TableData.X);
-            Canvas.SetTop(this, TableData.Y);
+            // Prevent negative positions
+            newX = Math.Max(0, newX);
+            newY = Math.Max(0, newY);
             
-            TableMoved?.Invoke(this, EventArgs.Empty);
+            // Check collision with other tables - handle X and Y independently
+            double width = ActualWidth > 0 ? ActualWidth : 320;
+            double height = ActualHeight > 0 ? ActualHeight : 100;
+            
+            double finalX = TableData.X;
+            double finalY = TableData.Y;
+            
+            if (CheckCollision != null)
+            {
+                // Try moving in X direction only
+                if (!CheckCollision(TableData.Id, newX, TableData.Y, width, height))
+                {
+                    finalX = newX;
+                }
+                
+                // Try moving in Y direction only
+                if (!CheckCollision(TableData.Id, finalX, newY, width, height))
+                {
+                    finalY = newY;
+                }
+            }
+            else
+            {
+                finalX = newX;
+                finalY = newY;
+            }
+            
+            // Only update if position actually changed
+            if (finalX != TableData.X || finalY != TableData.Y)
+            {
+                TableData.X = finalX;
+                TableData.Y = finalY;
+                
+                Canvas.SetLeft(this, TableData.X);
+                Canvas.SetTop(this, TableData.Y);
+                
+                TableMoved?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
